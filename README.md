@@ -5,6 +5,17 @@ Clone this repo
 git clone https://github.com/hxero/hyprbadapple
 cd hyprbadapple
 ```
+## Dependencies
+- `mpv`  - to play the audio file in the background
+- `socat`  -  to unpause mpv for syncing
+
+ \
+Arch-based
+```sh
+sudo pacman -S mpv socat
+```
+Other distros
+> idk, figure it out
 ## Configuring
 See useful stats for configuration
 ```sh
@@ -12,6 +23,7 @@ See useful stats for configuration
 cd baprocess
 
 # ~/hyprbadapple/baprocess
+pip install -r requirements.txt
 python pack.py
 
 # skipping video decode...
