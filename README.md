@@ -67,4 +67,4 @@ hyprctl reload&&killall mpv box
 - replace `box` with what you launched
 
 # Video
-[![uwu](https://www.youtube.com/watch?v=_U7K9CbeSq8)](https://www.youtube.com/watch?v=_U7K9CbeSq8)
+[![uwu](https://img.youtube.com/vi/_U7K9CbeSq8/0.jpg)](https://www.youtube.com/watch?v=_U7K9CbeSq8)
