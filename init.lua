@@ -112,7 +112,7 @@ defer(function()
 	hl.unbind("SUPER + U");
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
-		execute("pkill -x box&&hyprctl reload");
+		execute("killall box mpv&&hyprctl reload||hyprctl reload");
 	end);
 end);
 -- ]]
