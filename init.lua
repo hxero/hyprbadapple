@@ -1,5 +1,5 @@
 -- contants
-local LAUNCH = "/home/hxero/isolated/box i"; -- window to launch (can be non-terminal)
+local LAUNCH = "/home/hxero/hyprbadapple/box"; -- window launch command
 
 -- relative path to current dir
 local BOX_PATH   = "baprocess/output/boxes.bin"; -- path to the generated bin file
