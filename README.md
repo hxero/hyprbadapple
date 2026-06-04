@@ -68,7 +68,7 @@ local LAUNCH = "~/hyprbadapple/box"; -- window launch command
 ```
  > It's not recommended to launch heavy window like a browser or something similar
 ## Start
-To run this cd into `hyprbadapple`, then run
+cd into `hyprbadapple`, then run
 ```lua
 hyprctl eval "dofile('${PWD}/init.lua')"
 ```
