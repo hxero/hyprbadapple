@@ -238,7 +238,6 @@ local watcher; watcher = timer(function()
 	-- and all the windows are opened
 	if (loader:is_enabled() or #pool_selector < MAX_BOXES) then return; end;
 
-	loader:set_enabled(false);
 	watcher:set_enabled(false);
 
 	dispatch(window_close({ window = "title:bad_progress", }));
