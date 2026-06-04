@@ -1,15 +1,16 @@
 -- contants
 local LAUNCH = "/home/hxero/isolated/box i"; -- window to launch (can be non-terminal)
 
-local BOX_PATH   = "/home/hxero/baprocess/output/boxes.bin"; -- path to the generated bin file
-local AUDIO_PATH = "/home/hxero/baprocess/badapple.webm";
+-- relative path to current dir
+local BOX_PATH   = "baprocess/output/boxes.bin"; -- path to the generated bin file
+local AUDIO_PATH = "baprocess/badapple.mp3";
 
 local MAX_BOXES = 153; -- the `most boxes` from python
 local FPS       = 30;  -- 1-30 framerate (sync playback)
 
 local SCALE    = 24;  -- scale  -> resolution height / (grid height)
 local OFFSET_X = 192; -- center -> [(resolution width) - (grid width * scale)] / 2
-local OFFSET_Y = 46;  -- depends on your top|bottom bars
+local OFFSET_Y = 46;  -- depends on your top|bottom bars - can be 0 if you want it to fullscreen
 
 -- variables
 local timer, animation, execute, dispatch, on_event, window_rule =
@@ -54,8 +55,24 @@ local require = function(modname)
 	return module;
 end;
 
+-- to work with `hyprctl eval` in different path
+-- make the require to load from current dir instead of root
+local current_file = debug.getinfo(1, "S").source;
+assert(
+	current_file and current_file:sub(1, 1) == "@", -- @/home/..
+	"unable to get current directory");
+
+-- remove filename from path
+local current_dir = current_file:sub(2):match("(.*/)") or "./";
+package.cpath = current_dir .. "?.so;" .. package.cpath;
+
+local function relative_path(path)
+	return path:sub(1, 1) == "/" and path or current_dir .. "/" .. path;
+end;
+
 local function validate_file(path)
-	return os.rename(path, path);
+	local correct_path = relative_path(path);
+	return os.rename(correct_path, correct_path);
 end;
 
 assert(validate_file(BOX_PATH),   "BOX_PATH invalid path\n" .. BOX_PATH);
@@ -74,13 +91,17 @@ assert(
 assert(type(OFFSET_X) == "number", "OFFSET_X must be a valid integer");
 assert(type(OFFSET_Y) == "number", "OFFSET_Y must be a valid integer");
 
+-- correction
 MAX_BOXES, FPS, SCALE, OFFSET_X, OFFSET_Y =
 	floor(MAX_BOXES), floor(FPS), floor(SCALE), floor(OFFSET_X), floor(OFFSET_Y);
+
+BOX_PATH, AUDIO_PATH =
+	relative_path(BOX_PATH), relative_path(AUDIO_PATH);
 
 local box_file = assert(io.open(BOX_PATH, "rb"));
 
 -- modules
-local now = require("timeing"); -- > fn(void): time
+local now = require("meti"); -- > fn(void): time
 --          just a copy of luasocket .gettime
 
 -- init
