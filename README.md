@@ -82,7 +82,7 @@ cd into `hyprbadapple`, then run
 sh start.sh
 
 # or directly
-hyprctl eval "dofile'$PWD/init.lua'&&exit"
+hyprctl eval "dofile'$PWD/init.lua'"&&exit
 ```
 
 To force stop, run
