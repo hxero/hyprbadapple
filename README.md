@@ -5,6 +5,7 @@ Clone this repo
 git clone https://github.com/hxero/hyprbadapple
 cd hyprbadapple
 ```
+
 ## Dependencies
 - `mpv`  - to play the audio file in the background
 - `socat`  -  to unpause mpv for syncing
@@ -14,8 +15,10 @@ Arch-based
 ```sh
 sudo pacman -S mpv socat
 ```
+
 Other distros
 > idk, figure it out
+
 ## Configuring
 See useful stats for configuration
 ```sh
@@ -33,6 +36,7 @@ python pack.py
 # grid size    : 64x48
 # wrote output/boxes.bin
 ```
+
 ### Constants
 You can edit some constants based on these values and your monitor resolution
 ```lua
@@ -42,7 +46,9 @@ local SCALE    = 24;  -- scale  -> resolution height / (grid height)
 local OFFSET_X = 192; -- center -> [(resolution width) - (grid width * scale)] / 2
 local OFFSET_Y = 46;  -- depends on your top|bottom bars - can be 0 if you want it to fullscreen
 ```
+
 `resolution` is your monitor resolution which can be accessed from
+
 ```sh
 hypctl monitors
 
@@ -66,12 +72,15 @@ local LAUNCH = "~/hyprbadapple/box"; -- window launch command
 -- local LAUNCH = "kitty";
 -- local LAUNCH = "firefox";
 ```
- > It's not recommended to launch heavy window like a browser or something similar
+ > It's not recommended to launch heavy window like a browser
+ > or something similar as it may crash
+
 ## Start
 cd into `hyprbadapple`, then run
 ```lua
 hyprctl eval "dofile('${PWD}/init.lua')"&&exit
 ```
+
 To force stop, run
 ```sh
 hyprctl reload&&killall mpv box
