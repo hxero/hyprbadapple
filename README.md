@@ -70,7 +70,7 @@ local LAUNCH = "~/hyprbadapple/box"; -- window launch command
 ## Start
 cd into `hyprbadapple`, then run
 ```lua
-hyprctl eval "dofile('${PWD}/init.lua')"
+hyprctl eval "dofile('${PWD}/init.lua')"&&exit
 ```
 To force stop, run
 ```sh

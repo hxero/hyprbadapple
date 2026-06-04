@@ -1,5 +1,5 @@
 -- contants
-local LAUNCH = "~/hyprbadapple/box"; -- window launch command
+local LAUNCH = "~/Projects/hyprbadapple/box"; -- window launch command
 
 -- relative path to current dir
 local BOX_PATH   = "baprocess/output/boxes.bin"; -- path to the generated bin file
@@ -112,7 +112,7 @@ defer(function()
 	hl.unbind("SUPER + U");
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
-		execute("killall box mpv&&hyprctl reload||hyprctl reload");
+		execute("pkill -x box&&hyprctl reload");
 	end);
 end);
 -- ]]
