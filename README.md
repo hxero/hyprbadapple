@@ -10,6 +10,7 @@ cd hyprbadapple
 ```
 
 ## Dependencies
+- `hyprland` - the window manager itself
 - `mpv`  - to play the audio file in the background
 - `socat`  -  to unpause mpv for syncing
 
