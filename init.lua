@@ -23,8 +23,12 @@ local window_move, window_resize, window_tag, window_close =
 local floor = math.floor;
 
 -- utils
-local function defer(fn, delay)
-	timer(fn, { timeout = tonumber(delay) or 1, type = "oneshot", });
+local defer; do
+	local opt = { timeout = 1, type = "oneshot", };
+	defer = function(fn, delay)
+		opt.timeout = tonumber(delay) or 1;
+		timer(fn, opt);
+	end;
 end;
 
 -- guards
@@ -36,6 +40,8 @@ end;
 local assert = function(condition, message, ...)
 	if (condition == nil or condition == false) then
 		defer(function()
+			-- debugging
+			-- clear cache if loaded from require
 			package.loaded["badapple"] = nil;
 		end);
 		error(message);
@@ -44,6 +50,7 @@ local assert = function(condition, message, ...)
 end;
 
 local require = function(modname)
+	-- ensure module exist before running
 	local module = require(modname);
 	local ok = type(module) ~= "table" or next(module) ~= nil;
 	if (not ok) then
@@ -112,7 +119,7 @@ defer(function()
 	hl.unbind("SUPER + U");
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
-		execute("killall box mpv&&hyprctl reload||hyprctl reload");
+		execute("killall -9 box mpv&&hyprctl reload||hyprctl reload");
 	end);
 end);
 -- ]]
