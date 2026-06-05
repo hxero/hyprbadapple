@@ -80,13 +80,13 @@ cd into `hyprbadapple`, then run
 ```sh
 sh start.sh&&exit
 ```
- \
 or directly
 ```sh
 hyprctl eval "dofile'$PWD/init.lua'"&&exit
 ```
 > `&&exit` to exit the terminal after starting
 
+ \
 To force stop, run
 ```sh
 hyprctl reload&&killall mpv box
