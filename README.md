@@ -78,10 +78,11 @@ local LAUNCH = "~/hyprbadapple/box"; -- window launch command
 ## Start
 cd into `hyprbadapple`, then run
 ```sh
-# easier
 sh start.sh&&exit
-
-# or directly
+```
+ \
+or directly
+```sh
 hyprctl eval "dofile'$PWD/init.lua'"&&exit
 ```
 > `&&exit` to exit the terminal after starting
