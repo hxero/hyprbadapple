@@ -1,3 +1,6 @@
+
+# Video
+[![uwu](https://img.youtube.com/vi/_U7K9CbeSq8/0.jpg)](https://www.youtube.com/watch?v=_U7K9CbeSq8)
 # Getting started
 Clone this repo
 ```sh
@@ -92,6 +95,3 @@ To force stop, run
 hyprctl reload&&killall mpv box
 ```
 - replace `box` with what you launched
-
-# Video
-[![uwu](https://img.youtube.com/vi/_U7K9CbeSq8/0.jpg)](https://www.youtube.com/watch?v=_U7K9CbeSq8)
