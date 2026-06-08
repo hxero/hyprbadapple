@@ -137,7 +137,7 @@ defer(function()
 		-- replace box with the process name, e.g. kitty
 		abort_signal = true;
 		for _, v in next, hl.get_windows({ tag = "bad_apple*", }) do
-			hl.notification.create({ text = tostring(v), timeout = 5000, });
+			-- hl.notification.create({ text = tostring(v), timeout = 5000, });
 			dispatch(window_dsp.kill({ window = v, }));
 		end;
 		execute("hyprctl reload&&killall mpv box");
