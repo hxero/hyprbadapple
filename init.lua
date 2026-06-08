@@ -9,11 +9,32 @@ local window_move, window_resize, window_tag, window_close =
 local floor = math.floor;
 
 -- utils
-local defer; do
-	local opt = { timeout = 1, type = "oneshot", };
-	defer = function(fn, delay)
-		opt.timeout = tonumber(delay) or 1;
-		timer(fn, opt);
+local abort_signal = false; -- abort everything
+
+local defer, cycle; do
+	local handler = function(fn, abort, opt)
+		local self; self = timer(function()
+			if (abort_signal) then
+				self:set_enabled(false);
+				abort();
+				return;
+			end;
+			fn();
+		end, opt);
+
+		return self;
+	end;
+
+	local dopt = { timeout = 1, type = "oneshot", };
+	defer = function(fn, delay, abort)
+		dopt.timeout = tonumber(delay) or 1;
+		return handler(fn, abort, dopt);
+	end;
+
+	local copt = { timeout = 100, type = "repeat", };
+	cycle = function(fn, delay, abort)
+		copt.timeout = tonumber(delay) or 100;
+		return handler(fn, abort, copt);
 	end;
 end;
 
@@ -114,11 +135,12 @@ defer(function()
 	hl.unbind("SUPER + U");
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
-		execute("pkill -9 mpv&&hyprctl reload||hyprctl reload");
-		for _, v in next, hl.get_windows({ tag = "bad_apple" }) do
-			hl.notification.create({ text = tostring(v), duration = 5000 });
+		abort_signal = true;
+		for _, v in next, hl.get_windows({ tag = "bad_apple*", }) do
+			hl.notification.create({ text = tostring(v), timeout = 5000, });
 			dispatch(window_dsp.kill({ window = v, }));
 		end;
+		execute("hyprctl reload&&killall mpv box");
 	end);
 end);
 -- ]]
@@ -156,7 +178,21 @@ local pool_selector = {}; do
 	local index = 1;
 	-- this instead of for loop to try and avoid crashes from batch launching
 	local resume = true;
-	local spawner; spawner = timer(function()
+	local listener; listener = on_event("window.open", function(window)
+		for _, t in ipairs(window.tags) do
+			if (t == "bad_apple*") then
+				resume = true;
+				pool_selector[#pool_selector + 1] = "address:" .. window.address;
+				break;
+			end;
+		end;
+
+		if #pool_selector == MAX_BOXES then
+			listener:remove();
+		end;
+	end);
+
+	local spawner; spawner = cycle(function()
 		if (not resume) then return; end;
 		if (index > MAX_BOXES) then
 			-- execute(
@@ -170,16 +206,7 @@ local pool_selector = {}; do
 		execute(LAUNCH, { tag = "+bad_apple", });
 		index = index + 1;
 		resume = false;
-	end, { timeout = 4, type = "repeat", });
-
-	on_event("window.open", function(window)
-		for _, t in ipairs(window.tags) do
-			if (t == "bad_apple*") then
-				resume = true;
-				pool_selector[#pool_selector + 1] = "address:" .. window.address;
-			end;
-		end;
-	end);
+	end, 4, function() listener:remove(); end);
 end;
 
 local is_hidden = {};
@@ -209,7 +236,7 @@ local chunks_read = 0;
 local frames, frame = {}, {};
 
 local LOAD_CHUNKS = 500;
-local loader; loader = timer(function()
+local loader; loader = cycle(function()
 	-- load frames into cache
 	for _ = 1, LOAD_CHUNKS, 1 do
 		local chunk = box_file:read(4);
@@ -237,9 +264,16 @@ local loader; loader = timer(function()
 	if (chunks_read % 2500 < LOAD_CHUNKS) then
 		print("bad_apple PROG: loading... " .. #frames .. " frames");
 	end;
-end, { timeout = 4, type = "repeat", });
+end, 4, function()
+	if (box_file) then
+		box_file:close();
+	end;
 
-local watcher; watcher = timer(function()
+	frame = {};
+	print("bad_apple PROG: Loader aborted.");
+end);
+
+local watcher; watcher = cycle(function()
 	-- starts when `loader` finishes caching frames
 	-- and all the windows are opened
 	if (loader:is_enabled() or #pool_selector < MAX_BOXES) then return; end;
@@ -263,7 +297,7 @@ local watcher; watcher = timer(function()
 			[[echo 'set pause no' | socat - /tmp/mpvsocket]]
 		);
 
-		timer(function()
+		cycle(function()
 			local elapsed = now() - start_time;
 			local target = floor(elapsed * 30) + 1;
 			if (target > frame_index) then
@@ -322,6 +356,6 @@ local watcher; watcher = timer(function()
 				end;
 			end;
 			frame_index = frame_index + 1;
-		end, { timeout = (1000 / FPS), type = "repeat", });
+		end, (1000 / FPS));
 	end, 500);
-end, { timeout = 100, type = "repeat", });
+end, 100);

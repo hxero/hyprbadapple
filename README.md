@@ -82,6 +82,9 @@ LAUNCH = "~/hyprbadapple/box", -- window launch command
  > or something similar as it may crash
 
 ## Start
+> [!IMPORTANT]
+> To force stop cleanly, press `SUPER + U` after you started
+
 cd into `hyprbadapple`, then run
 ```sh
 sh start.sh&&exit
@@ -91,10 +94,3 @@ or directly
 hyprctl eval "dofile'$PWD/init.lua'"&&exit
 ```
 > `&&exit` to exit the terminal after starting
-
- \
-To force stop, run
-```sh
-hyprctl reload&&killall mpv box
-```
-- replace `box` with what you launched
