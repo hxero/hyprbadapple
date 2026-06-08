@@ -1,6 +1,7 @@
 
 # Video
 [![uwu](https://img.youtube.com/vi/_U7K9CbeSq8/0.jpg)](https://www.youtube.com/watch?v=_U7K9CbeSq8)
+
 # Getting started
 Clone this repo
 ```sh
@@ -42,13 +43,14 @@ python pack.py
 ```
 
 ### Constants
-You can edit some constants based on these values and your monitor resolution
+You can edit some constants based on these values and your monitor resolution \
+in `config.lua`
 ```lua
-local MAX_BOXES = 153; -- the `most boxes` from python
+MAX_BOXES = 153, -- the `most boxes` from python
 
-local SCALE    = 24;  -- scale  -> resolution height / (grid height)
-local OFFSET_X = 192; -- center -> [(resolution width) - (grid width * scale)] / 2
-local OFFSET_Y = 46;  -- depends on your top|bottom bars - can be 0 if you want it to fullscreen
+SCALE    = 24,  -- scale  -> resolution height / (grid height)
+OFFSET_X = 192, -- center -> [(resolution width) - (grid width * scale)] / 2
+OFFSET_Y = 46,  -- depends on your top|bottom bars - can be 0 if you want it to fullscreen
 ```
 
 `resolution` is your monitor resolution which can be accessed from
@@ -72,7 +74,7 @@ and, `OFFSET_X` = `(1920 - 64*25)/2` = `160`
  \
 Change this to launch different window e.g. `kitty` `foot`
 ```lua
-local LAUNCH = "~/hyprbadapple/box"; -- window launch command
+LAUNCH = "~/hyprbadapple/box", -- window launch command
 -- local LAUNCH = "kitty";
 -- local LAUNCH = "firefox";
 ```

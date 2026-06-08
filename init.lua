@@ -1,17 +1,3 @@
--- contants
-local LAUNCH = "~/Projects/hyprbadapple/box"; -- window launch command
-
--- relative path to current dir
-local BOX_PATH   = "baprocess/output/boxes.bin"; -- path to the generated bin file
-local AUDIO_PATH = "baprocess/badapple.mp3";
-
-local MAX_BOXES = 153; -- the `most boxes` from python
-local FPS       = 30;  -- 1-30 framerate (sync playback)
-
-local SCALE    = 24;  -- scale  -> resolution height / (grid height)
-local OFFSET_X = 192; -- center -> [(resolution width) - (grid width * scale)] / 2
-local OFFSET_Y = 46;  -- depends on your top|bottom bars - can be 0 if you want it to fullscreen
-
 -- variables
 local timer, animation, execute, dispatch, on_event, window_rule =
 	hl.timer, hl.animation, hl.exec_cmd, hl.dispatch, hl.on, hl.window_rule;
@@ -72,6 +58,7 @@ assert(
 -- remove filename from path
 local current_dir = current_file:sub(2):match("(.*/)") or "./";
 package.cpath = current_dir .. "?.so;" .. package.cpath;
+package.path = current_dir .. "?.lua;" .. package.path;
 
 local function relative_path(path)
 	return path:sub(1, 1) == "/" and path or current_dir .. "/" .. path;
@@ -81,6 +68,14 @@ local function validate_file(path)
 	local correct_path = relative_path(path);
 	return os.rename(correct_path, correct_path);
 end;
+
+local config = require("config");
+local LAUNCH, BOX_PATH, AUDIO_PATH, MAX_BOXES, SCALE, FPS, OFFSET_X, OFFSET_Y =
+	config.LAUNCH, config.BOX_PATH, config.AUDIO_PATH,
+	config.MAX_BOXES, config.SCALE, config.FPS,
+	config.OFFSET_X, config.OFFSET_Y;
+
+assert(type(LAUNCH) == "string", "Invalid launch command (LAUNCH)");
 
 assert(validate_file(BOX_PATH),   "BOX_PATH invalid path\n" .. BOX_PATH);
 assert(validate_file(AUDIO_PATH), "AUDIO_PATH invalid path\n" .. AUDIO_PATH);
@@ -119,7 +114,11 @@ defer(function()
 	hl.unbind("SUPER + U");
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
-		execute("killall -9 box mpv&&hyprctl reload||hyprctl reload");
+		execute("pkill -9 mpv&&hyprctl reload||hyprctl reload");
+		for _, v in next, hl.get_windows({ tag = "bad_apple" }) do
+			hl.notification.create({ text = tostring(v), duration = 5000 });
+			dispatch(window_dsp.kill({ window = v, }));
+		end;
 	end);
 end);
 -- ]]
