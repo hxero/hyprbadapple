@@ -237,7 +237,7 @@ local pool_selector = {}; do
 			else
 				_tag_arg.window = v;
 				_tag_arg.tag    = "-bad_apple*";
-				notify(dispatch(window_tag(_tag_arg)));
+				dispatch(window_tag(_tag_arg));
 			end;
 		end;
 	end;
