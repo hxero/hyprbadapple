@@ -6,6 +6,8 @@ local window_dsp = hl.dsp.window;
 local window_move, window_resize, window_tag, window_close =
 	window_dsp.move, window_dsp.resize, window_dsp.tag, window_dsp.close;
 
+local type = type;
+
 local floor = math.floor;
 
 -- utils
@@ -17,6 +19,8 @@ local defer, cycle; do
 			if (abort_signal) then
 				self:set_enabled(false);
 				abort();
+
+				collectgarbage("collect");
 				return;
 			end;
 			fn();
@@ -36,6 +40,27 @@ local defer, cycle; do
 		copt.timeout = tonumber(delay) or 100;
 		return handler(fn, abort, copt);
 	end;
+end;
+
+local function t_find(t, v)
+	for i = 1, #t, 1 do
+		if t[i] == v then
+			return i;
+		end;
+	end;
+end;
+
+local dump;
+--- @diagnostic disable-next-line: unused-function, unused-local
+local function notify(...)
+	if (not dump) then dump = require("utils.dump"); end;
+	-- debug
+	local str = { ..., };
+	for i = 1, #str, 1 do
+		str[i] = dump(str[i]);
+	end;
+
+	hl.notification.create({ text = table.concat(str, " "), timeout = 5000, });
 end;
 
 -- guards
@@ -140,7 +165,7 @@ defer(function()
 			-- hl.notification.create({ text = tostring(v), timeout = 5000, });
 			dispatch(window_dsp.kill({ window = v, }));
 		end;
-		execute("hyprctl reload&&killall mpv box");
+		execute("sleep 1 ; hyprctl reload&&killall mpv");
 	end);
 end);
 -- ]]
@@ -170,28 +195,58 @@ window_rule({
 
 window_rule({ match = { tag = "ba_hidden", }, opacity = "0.0 override", });
 
-for _, v in ipairs({ "windows", "windowsIn", "windowsOut", "windowsMove", "fade", }) do
-	animation({ leaf = v, speed = 1, enabled = false, });
+do
+	local _arg = { speed = 1, enabled = false, };
+	for _, v in ipairs({ "windows", "windowsIn", "windowsOut", "windowsMove", "fade", }) do
+		_arg.leaf = v;
+		animation(_arg);
+	end;
 end;
 
+-- reduce garbage janitor works (not allocating every frame)
+local _transform_arg = { x = 0, y = 0, };
+local _tag_arg       = {};
+
+local pool_len = 0;
 local pool_selector = {}; do
 	local index = 1;
-	-- this instead of for loop to try and avoid crashes from batch launching
 	local resume = true;
-	local listener; listener = on_event("window.open", function(window)
-		for _, t in ipairs(window.tags) do
-			if (t == "bad_apple*") then
-				resume = true;
-				pool_selector[#pool_selector + 1] = "address:" .. window.address;
-				break;
+
+	local function clean_stray()
+		-- compensate the imperfection of executing with rule
+		local tagged = hl.get_windows({ tag = "bad_apple*", });
+
+		local class_count = {};
+		for _, v in ipairs(tagged) do
+			class_count[v.class] = (class_count[v.class] or 0) + 1;
+		end;
+
+		local majority;
+		local max = 0;
+		for i, v in next, class_count do
+			if (v > max) then
+				max = v;
+				majority = i;
 			end;
 		end;
 
-		if #pool_selector == MAX_BOXES then
-			listener:remove();
+		for _, v in ipairs(tagged) do
+			if (v.class == majority) then
+				pool_len = pool_len + 1;
+				pool_selector[pool_len] = "address:" .. v.address;
+			else
+				_tag_arg.window = v;
+				_tag_arg.tag    = "-bad_apple*";
+				notify(dispatch(window_tag(_tag_arg)));
+			end;
 		end;
+	end;
+
+	local listener; listener = on_event("window.open", function(window)
+		if (t_find(window.tags, "bad_apple*")) then resume = true; end;
 	end);
 
+	-- this instead of for loop to try and avoid crashes from batch launching
 	local spawner; spawner = cycle(function()
 		if (not resume) then return; end;
 		if (index > MAX_BOXES) then
@@ -199,26 +254,20 @@ local pool_selector = {}; do
 			-- 	[[foot -o main.locked-title=yes -Tbad_progress -- \
 			-- 	sh -c 'hyprctl rollinglog -f | grep "bad_apple PROG"']]
 			-- );
-
+			clean_stray();
 			return spawner:set_enabled(false);
 		end;
 
-		execute(LAUNCH, { tag = "+bad_apple", });
+		_tag_arg.tag = "+bad_apple";
+		execute(LAUNCH, _tag_arg);
 		index = index + 1;
 		resume = false;
-	end, 4, function() listener:remove(); end);
+	end, 4, function() return listener and listener:remove(); end);
 end;
 
 local is_hidden = {};
 local prev_x, prev_y = {}, {};
 local prev_w, prev_h = {}, {};
-
--- i was really trying to improve the performance
--- so i gotta use any micro-optimizing i know ok.
--- avoid gc stutter
-local _resize_arg = { window = nil, x = 0, y = 0, };
-local _move_arg   = { window = nil, x = 0, y = 0, };
-local _tag_arg    = { window = nil, tag = nil, };
 
 local function hide(i)
 	if (is_hidden[i]) then return; end;
@@ -232,51 +281,61 @@ local function hide(i)
 	prev_w[i], prev_h[i] = nil, nil;
 end;
 
-local chunks_read = 0;
 local frames, frame = {}, {};
+local frames_len, frame_len = 0, 0;
+
+local chunks_read = 0;
 
 local LOAD_CHUNKS = 500;
+local READ_BYTES  = 4;
+local READ_SIZE   = LOAD_CHUNKS * READ_BYTES;
 local loader; loader = cycle(function()
-	-- load frames into cache
-	for _ = 1, LOAD_CHUNKS, 1 do
-		local chunk = box_file:read(4);
-		if (not chunk or #chunk < 4) then
-			-- end of file
-			box_file:close();
-			print("bad_apple PROG: loaded " .. #frames .. " frames");
+	local bulk_chunk = box_file:read(READ_SIZE);
+	local bulk_len   = bulk_chunk and #bulk_chunk;
+	if (bulk_len and (bulk_len == 0 or bulk_len < READ_SIZE)) then
+		-- end of file
+		box_file:close();
+		print("bad_apple PROG: loaded " .. frames_len .. " frames");
 
-			return loader:set_enabled(false);
-		end;
+		return loader:set_enabled(false);
+	end;
 
-		local x, y, w, h = chunk:byte(1, 4);
+	for i = 1, bulk_len, READ_BYTES do
+		if (i + 3 > bulk_len) then break; end;
+
+		local x, y, w, h = bulk_chunk:byte(i, i + 3);
 		if (x == 0 and y == 0 and w == 0 and h == 0) then
 			-- append frame and reset frame
-			frames[#frames + 1] = frame;
+			frames_len = frames_len + 1;
+			frames[frames_len] = frame;
+
+			frame_len = 0;
 			frame = {};
 		else
 			-- append box to frame
-			frame[#frame + 1] = { x * SCALE, y * SCALE, w * SCALE, h * SCALE, };
+			frame_len = frame_len + 1;
+			frame[frame_len] = { x * SCALE, y * SCALE, w * SCALE, h * SCALE, };
 		end;
 
 		chunks_read = chunks_read + 1;
 	end;
 
 	if (chunks_read % 2500 < LOAD_CHUNKS) then
-		print("bad_apple PROG: loading... " .. #frames .. " frames");
+		print("bad_apple PROG: loading... " .. frames_len .. " frames");
 	end;
 end, 4, function()
 	if (box_file) then
 		box_file:close();
 	end;
 
-	frame = {};
+	frame = nil;
 	print("bad_apple PROG: Loader aborted.");
 end);
 
 local watcher; watcher = cycle(function()
 	-- starts when `loader` finishes caching frames
 	-- and all the windows are opened
-	if (loader:is_enabled() or #pool_selector < MAX_BOXES) then return; end;
+	if (loader:is_enabled() or pool_len < MAX_BOXES) then return; end;
 
 	watcher:set_enabled(false);
 
@@ -308,7 +367,8 @@ local watcher; watcher = cycle(function()
 			local boxes = frames[frame_index];
 			if (not boxes) then return; end;
 
-			for i = 1, #boxes, 1 do
+			local boxes_len = #boxes;
+			for i = 1, boxes_len, 1 do
 				local box    = boxes[i];
 				local hidden = is_hidden[i];
 
@@ -316,41 +376,37 @@ local watcher; watcher = cycle(function()
 				local size_changed = prev_w[i] ~= w or prev_h[i] ~= h;
 				local pos_changed  = prev_x[i] ~= x or prev_y[i] ~= y;
 
-				if (not hidden and not size_changed and not pos_changed) then
-					-- didn't change from previous frame
-					goto continue;
-				end;
-
-				local sel = pool_selector[i];
-				if (hidden or size_changed) then
-					_resize_arg.window = sel;
-					_resize_arg.x, _resize_arg.y = w, h;
-					dispatch(window_resize(_resize_arg));
-
-					prev_w[i], prev_h[i] = w, h;
-				end;
-
 				if (hidden or size_changed or pos_changed) then
-					_move_arg.window         = sel;
-					_move_arg.x, _move_arg.y = OFFSET_X + x, OFFSET_Y + y;
-					dispatch(window_move(_move_arg));
+					local sel = pool_selector[i];
+					if (hidden or size_changed) then
+						_transform_arg.window = sel;
+						_transform_arg.x, _transform_arg.y = w, h;
+						dispatch(window_resize(_transform_arg));
 
-					prev_x[i], prev_y[i] = x, y;
+						prev_w[i], prev_h[i] = w, h;
+					end;
+
+					if (hidden or size_changed or pos_changed) then
+						_transform_arg.window = sel;
+						_transform_arg.x, _transform_arg.y = OFFSET_X + x, OFFSET_Y + y;
+						dispatch(window_move(_transform_arg));
+
+						prev_x[i], prev_y[i] = x, y;
+					end;
+
+					if (hidden) then
+						_tag_arg.window = sel;
+						_tag_arg.tag    = "-ba_hidden";
+						dispatch(window_tag(_tag_arg));
+
+						is_hidden[i] = false;
+					end;
+
+					prev[i] = box;
 				end;
-
-				if (hidden) then
-					_tag_arg.window = sel;
-					_tag_arg.tag    = "-ba_hidden";
-					dispatch(window_tag(_tag_arg));
-
-					is_hidden[i] = false;
-				end;
-
-				prev[i] = box;
-				::continue::
 			end;
 
-			for i = #boxes + 1, MAX_BOXES, 1 do
+			for i = boxes_len + 1, MAX_BOXES, 1 do
 				if (prev[i]) then
 					hide(i); prev[i] = nil;
 				end;
