@@ -5,6 +5,7 @@ local timer, animation, execute, dispatch, on_event, window_rule =
 local window_dsp = hl.dsp.window;
 local window_move, window_resize, window_tag, window_close =
 	window_dsp.move, window_dsp.resize, window_dsp.tag, window_dsp.close;
+local get_windows = hl.get_windows;
 
 local type = type;
 
@@ -43,7 +44,7 @@ local defer, cycle; do
 end;
 
 local function t_find(t, v)
-	for i = 1, #t, 1 do
+	for i = 1, #t do
 		if t[i] == v then
 			return i;
 		end;
@@ -56,7 +57,7 @@ local function notify(...)
 	if (not dump) then dump = require("utils.dump"); end;
 	-- debug
 	local str = { ..., };
-	for i = 1, #str, 1 do
+	for i = 1, #str do
 		str[i] = dump(str[i]);
 	end;
 
@@ -161,10 +162,14 @@ defer(function()
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
 		abort_signal = true;
-		for _, v in next, hl.get_windows({ tag = "bad_apple*", }) do
-			-- hl.notification.create({ text = tostring(v), timeout = 5000, });
-			dispatch(window_dsp.kill({ window = v, }));
-		end;
+		local windows = get_windows({ tag = "bad_apple*", });
+		local i = 0;
+		local j = #windows;
+		local killer; killer = hl.timer(function()
+			if (i > j) then killer:set_enabled(); end;
+			dispatch(window_dsp.kill({ window = windows[i], }));
+			i = i + 1;
+		end, { timeout = 4, type = "repeat", });
 		execute("sleep 1 ; hyprctl reload&&killall mpv");
 	end);
 end);
@@ -214,7 +219,8 @@ local pool_selector = {}; do
 
 	local function clean_stray()
 		-- compensate the imperfection of executing with rule
-		local tagged = hl.get_windows({ tag = "bad_apple*", });
+		pool_len = 0;
+		local tagged = get_windows({ tag = "bad_apple*", });
 
 		local class_count = {};
 		for _, v in ipairs(tagged) do
@@ -254,6 +260,9 @@ local pool_selector = {}; do
 			-- 	[[foot -o main.locked-title=yes -Tbad_progress -- \
 			-- 	sh -c 'hyprctl rollinglog -f | grep "bad_apple PROG"']]
 			-- );
+			if (listener) then
+				listener:remove(); listener = nil;
+			end;
 			clean_stray();
 			return spawner:set_enabled(false);
 		end;
@@ -328,7 +337,8 @@ end, 4, function()
 		box_file:close();
 	end;
 
-	frame = nil;
+	frame  = nil;
+	frames = nil;
 	print("bad_apple PROG: Loader aborted.");
 end);
 
@@ -342,7 +352,7 @@ local watcher; watcher = cycle(function()
 	dispatch(window_close({ window = "title:bad_progress", }));
 	print("bad_apple: starting");
 
-	for i = 1, MAX_BOXES, 1 do
+	for i = 1, MAX_BOXES do
 		hide(i);
 	end;
 
@@ -368,7 +378,7 @@ local watcher; watcher = cycle(function()
 			if (not boxes) then return; end;
 
 			local boxes_len = #boxes;
-			for i = 1, boxes_len, 1 do
+			for i = 1, boxes_len do
 				local box    = boxes[i];
 				local hidden = is_hidden[i];
 
@@ -406,12 +416,17 @@ local watcher; watcher = cycle(function()
 				end;
 			end;
 
-			for i = boxes_len + 1, MAX_BOXES, 1 do
+			for i = boxes_len + 1, MAX_BOXES do
 				if (prev[i]) then
 					hide(i); prev[i] = nil;
 				end;
 			end;
 			frame_index = frame_index + 1;
+
+			if (frame_index > frames_len) then
+				abort_signal = true;
+				-- finished
+			end;
 		end, (1000 / FPS));
 	end, 500);
 end, 100);
