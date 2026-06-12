@@ -173,6 +173,7 @@ defer(function()
 
 		local debounce;
 		local killer; killer = hl.timer(function()
+			-- because some windows get launched later and not get included
 			local windows = get_windows({ tag = "bad_apple*", });
 
 			if (#windows == 0) then
