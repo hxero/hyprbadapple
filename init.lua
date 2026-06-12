@@ -51,17 +51,24 @@ local function t_find(t, v)
 	end;
 end;
 
-local dump;
---- @diagnostic disable-next-line: unused-function, unused-local
-local function notify(...)
-	if (not dump) then dump = require("utils.dump"); end;
-	-- debug
-	local str = { ..., };
-	for i = 1, #str do
-		str[i] = dump(str[i]);
-	end;
+--- @diagnostic disable-next-line: unused-local
+local notify; do
+	local dump;
+	local notify_create = hl.notification.create;
+	local _arg = { timeout = 5000, };
 
-	hl.notification.create({ text = table.concat(str, " "), timeout = 5000, });
+	--- @diagnostic disable-next-line: unused-function, unused-local
+	notify = function(...)
+		if (not dump) then dump = require("utils.dump"); end;
+		-- debug
+		local str = { ..., };
+		for i = 1, #str do
+			str[i] = dump(str[i]);
+		end;
+
+		_arg.text = table.concat(str, "\n");
+		notify_create(_arg);
+	end;
 end;
 
 -- guards
@@ -162,15 +169,27 @@ defer(function()
 	hl.bind("SUPER + U", function()
 		-- replace box with the process name, e.g. kitty
 		abort_signal = true;
-		local windows = get_windows({ tag = "bad_apple*", });
-		local i = 0;
-		local j = #windows;
+		local _arg   = {};
+
+		local debounce;
 		local killer; killer = hl.timer(function()
-			if (i > j) then killer:set_enabled(); end;
-			dispatch(window_dsp.kill({ window = windows[i], }));
-			i = i + 1;
+			local windows = get_windows({ tag = "bad_apple*", });
+
+			if (#windows == 0) then
+				if (not debounce) then
+					debounce = true;
+					execute("sleep 0.1 ; hyprctl reload && pkill mpv");
+				end;
+				killer:set_enabled(false);
+				return;
+			end;
+
+			local target = windows[1];
+			if (target) then
+				_arg.window = target;
+				dispatch(window_dsp.kill(_arg));
+			end;
 		end, { timeout = 4, type = "repeat", });
-		execute("sleep 1 ; hyprctl reload&&killall mpv");
 	end);
 end);
 -- ]]
@@ -219,24 +238,24 @@ local pool_selector = {}; do
 
 	local function clean_stray()
 		-- compensate the imperfection of executing with rule
-		pool_len = 0;
-		local tagged = get_windows({ tag = "bad_apple*", });
+		pool_len       = 0;
+		local tagged   = get_windows({ tag = "bad_apple*", });
+		local tagged_n = #tagged;
 
 		local class_count = {};
-		for _, v in ipairs(tagged) do
-			class_count[v.class] = (class_count[v.class] or 0) + 1;
-		end;
-
-		local majority;
 		local max = 0;
-		for i, v in next, class_count do
-			if (v > max) then
-				max = v;
-				majority = i;
+		local majority;
+		for i = 1, tagged_n do
+			local id = tagged[i].class;
+			class_count[id] = (class_count[id] or 0) + 1;
+			if (class_count[id] > max) then
+				max      = class_count[id];
+				majority = id;
 			end;
 		end;
 
-		for _, v in ipairs(tagged) do
+		for i = 1, tagged_n do
+			local v = tagged[i];
 			if (v.class == majority) then
 				pool_len = pool_len + 1;
 				pool_selector[pool_len] = "address:" .. v.address;
@@ -256,10 +275,6 @@ local pool_selector = {}; do
 	local spawner; spawner = cycle(function()
 		if (not resume) then return; end;
 		if (index > MAX_BOXES) then
-			-- execute(
-			-- 	[[foot -o main.locked-title=yes -Tbad_progress -- \
-			-- 	sh -c 'hyprctl rollinglog -f | grep "bad_apple PROG"']]
-			-- );
 			if (listener) then
 				listener:remove(); listener = nil;
 			end;
@@ -269,7 +284,7 @@ local pool_selector = {}; do
 
 		_tag_arg.tag = "+bad_apple";
 		execute(LAUNCH, _tag_arg);
-		index = index + 1;
+		index  = index + 1;
 		resume = false;
 	end, 4, function() return listener and listener:remove(); end);
 end;
