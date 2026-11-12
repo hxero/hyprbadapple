@@ -27,7 +27,7 @@ die()  { echo "${c_red}✗ $*${c_off}" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 # guard
-for f in init.lua box meti.so baprocess/pack.py baprocess/badapple.webm baprocess/badapple.mp3; do
+for f in init.lua box meti.so baprocess/pack.py baprocess/badapple.mp4 baprocess/badapple.mp3; do
 	[ -e "$f" ] || die "missing $f - run this script from inside the hyprbadapple folder"
 done
 
