@@ -16,9 +16,9 @@ Run the script to install dependencies and set it up automatically
 sh setup.sh
 ```
 
-> When asked "Enter window launch command:"
-> Enter the command that launch window
-> example: `kitty`, `foot` or leave blank to use the "box" window
+> When asked "Enter window launch command:"  
+> Enter the command that launches the window  
+> example: `kitty`, `foot` or leave blank to use the "box" window  
 
 ## Start
 > [!IMPORTANT]
