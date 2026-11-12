@@ -19,7 +19,7 @@ local defer, cycle; do
 		local self; self = timer(function()
 			if (abort_signal) then
 				self:set_enabled(false);
-				abort();
+				if (abort) then abort(); end;
 
 				collectgarbage("collect");
 				return;

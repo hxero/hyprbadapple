@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
-INPUT = "badapple.webm"
+INPUT = "badapple.mp4"
 MAX_WIDTH = 64
 THRESHOLD = 255 * 0.4  # lum
 

@@ -10,76 +10,15 @@ git clone https://github.com/hxero/hyprbadapple
 cd hyprbadapple
 ```
 
-## Dependencies
-- `hyprland` - the window manager itself
-- `mpv`  - to play the audio file in the background
-- `socat`  -  to unpause mpv for syncing
-
- \
-Arch-based
+## Setup
+Run the script to install dependencies and set it up automatically
 ```sh
-sudo pacman -S mpv socat
+sh setup.sh
 ```
 
-Other distros
-> idk, figure it out
-
-## Configuring
-See useful stats for configuration
-```sh
-# ~/hyprbadapple
-cd baprocess
-
-# ~/hyprbadapple/baprocess
-pip install -r requirements.txt
-python pack.py
-
-# skipping video decode...
-# total frames : 6572
-# most boxes   : 153
-# total boxes  : 309476
-# grid size    : 64x48
-# wrote output/boxes.bin
-```
-
-### Constants
-You can edit some constants based on these values and your monitor resolution \
-in `config.lua`
-```lua
-MAX_BOXES = 153, -- the `most boxes` from python
-
-SCALE    = 24,  -- scale  -> resolution height / (grid height)
-OFFSET_X = 192, -- center -> [(resolution width) - (grid width * scale)] / 2
-OFFSET_Y = 46,  -- depends on your top|bottom bars - can be 0 if you want it to fullscreen
-```
-
-`resolution` is your monitor resolution which can be accessed from
-
-```sh
-hypctl monitors
-
-# Monitor eDP-1 (ID 0):
-#	        1920x1200@60 at 0x0
-```
-e.g. 1920x1200 and grid size: 64x48
- > 1920 is the resolution width \
- > 1200 is the resolution height \
- > 64 is the grid width \
- > 48 is the grid height
-
-So, `SCALE` = `1200/48` = `25` \
-and, `OFFSET_X` = `(1920 - 64*25)/2` = `160`
- > 25 is from `SCALE`
-
- \
-Change this to launch different window e.g. `kitty` `foot`
-```lua
-LAUNCH = "~/hyprbadapple/box", -- window launch command
--- local LAUNCH = "kitty";
--- local LAUNCH = "firefox";
-```
- > It's not recommended to launch heavy window like a browser
- > or something similar as it may crash
+> When asked "Enter window launch command:"
+> Enter the command that launch window
+> example: `kitty`, `foot` or leave blank to use the "box" window
 
 ## Start
 > [!IMPORTANT]
